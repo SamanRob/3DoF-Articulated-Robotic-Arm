@@ -1,4 +1,4 @@
-# 3DoF and 4Dof-Articualated-Robotic-Arm
+# 3DoF and 4Dof-Articulated-Robotic-Arm
 Self constructed and fully 3D printed 3DoF robotic arm.
 
 ![Untitled Project 2](https://user-images.githubusercontent.com/83728692/177980119-6e5f3cc5-1cf4-4b21-a91a-fac3ba990add.jpg)
