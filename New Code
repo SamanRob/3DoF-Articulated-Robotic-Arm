@@ -1,0 +1,120 @@
+#include <AccelStepper.h>
+#include <Stepper.h>
+#include <Servo.h>
+#include <Arduino.h>
+#include <math.h>
+#include <MultiStepper.h>
+
+
+#define X_ENABLE_PIN 38
+#define Y_ENABLE_PIN 56
+#define Z_ENABLE_PIN 62
+#define E0_ENABLE_PIN 24
+
+int currentValue1;
+int currentValue2;
+int previousValue1;
+int previousValue2;
+int pos;
+
+String content = "";
+float data[1000];
+
+// we need to calculate the gear ratio and steps of each stepper to have accurate movement
+// for each motore to increase the resolution 3 pins for microstepping were added it means 3200 steps for whole revolution is needed
+// Base has a ratio of 9.25:1>> 9.25x3200=29600 steps for 360 degree rotation >> 82.22 steps for one degree
+// Middle axis, Stepper motor has gear ratio of 13.73:1 and a pulley belt transmission of 9 which comes to 123.57>>>> 123.57x3200=395424 steps for a 360 degree rotation >> 1098.4 steps for one degree rotation
+// Angle to Step
+// Last has a ratio of 8:1>> 8x3200=25600 steps for 360 degree rotation >> 71.11 steps for one degree
+
+const float JOG1 = 62.2222;
+const float JOG2 = 854.31;
+const float JOG3 = 66.666666666;
+const float JOG4 = 40.00;
+//Ramp 1.4
+
+AccelStepper BaseStepper(1, 54, 55);
+AccelStepper MiddleStepper(1, 60, 61);
+AccelStepper LastStepper(1, 46, 48);
+AccelStepper GripperStepper(1, 26, 28);
+
+
+MultiStepper steppers;
+
+
+int theta1Array[100];
+int theta2Array[100];
+int theta3Array[100];
+int gripperArray[100];
+int positionsCounter = 0;
+
+void setup() {
+  // put your setup code here, to run once:
+  //for Ramp 1.4. When using in CNC shield disable it
+  BaseStepper.setEnablePin(X_ENABLE_PIN);
+  BaseStepper.setPinsInverted(false, false, true); //invert logic of enable pin
+  BaseStepper.enableOutputs();
+  MiddleStepper.setEnablePin(Y_ENABLE_PIN);
+  MiddleStepper.setPinsInverted(false, false, true); //invert logic of enable pin
+  MiddleStepper.enableOutputs();
+  LastStepper.setEnablePin(Z_ENABLE_PIN);
+  LastStepper.setPinsInverted(false, false, true); //invert logic of enable pin
+  LastStepper.enableOutputs();
+  GripperStepper.setEnablePin(E0_ENABLE_PIN);
+  GripperStepper.setPinsInverted(false, false, true); //invert logic of enable pin
+  GripperStepper.enableOutputs();
+ 
+
+  Serial.begin(115200); 
+  BaseStepper.setMaxSpeed(1000);
+  BaseStepper.setSpeed(1000);
+  BaseStepper.setAcceleration(2000);
+  MiddleStepper.setMaxSpeed(2000);
+  MiddleStepper.setSpeed(2000);
+  MiddleStepper.setAcceleration(4000);
+  LastStepper.setMaxSpeed(1000);
+  LastStepper.setSpeed(1000);
+  LastStepper.setAcceleration(2000);
+  GripperStepper.setMaxSpeed(500);
+  GripperStepper.setSpeed(500);
+  GripperStepper.setAcceleration(1000);
+
+  // setting the initial Position of the Servo to come to the physical zero Position of the gripper. 
+  steppers.addStepper(BaseStepper); // adding each stepper to the multipstepper array for synchronous motion
+  steppers.addStepper(MiddleStepper);
+  steppers.addStepper(LastStepper);
+  steppers.addStepper(GripperStepper);
+}
+
+ 
+void loop() {
+
+ if (Serial.available()) {
+    content = Serial.readString(); // Read the incomding data from Python
+    // Extract the data from the string and put into separate float variables (data[] array)
+    for (int i = 0; i < 100; i++) {
+      int index = content.indexOf(","); // locate the first ","
+      data[i] = atof(content.substring(0, index).c_str()); //Extract the number from start to the ","
+      content = content.substring(index + 1); //Remove the number from the string
+    }
+  }
+
+  
+  if (data[9]==1){
+    // Synchronous Motion
+    if  (data[3]>= -150 && data[3]<= 150 && data[4]>= -100 && data[4]<= 100 && data[5]>= -110 && data[5]<= 110 && data[6]>= -90 && data[6]<= 90) {
+    long positions[5];
+    positions[0]= data[3]*JOG1;
+    positions[1]= data[4]*JOG2;
+    positions[2]= data[5]*JOG3;
+    positions[3]= data[6]*JOG4;
+    
+    steppers.moveTo(positions);
+    steppers.runSpeedToPosition();
+    BaseStepper.setCurrentPosition(data[3]*JOG1);
+    MiddleStepper.setCurrentPosition(data[4]*JOG2);
+    LastStepper.setCurrentPosition(data[5]*JOG3);
+    GripperStepper.setCurrentPosition(data[6]*JOG4); 
+  }
+  }
+} 
